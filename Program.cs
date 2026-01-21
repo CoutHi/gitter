@@ -14,6 +14,42 @@ public class Config {
   public Dictionary<string, AppConfig> Program { get; set; } = new(); // init empty to avoid null
 }
 
+public class LaunchConfig {
+  public bool std_show = false;
+  public bool verbose = false;
+  public string config_path = "";
+
+  public LaunchConfig(string[] args) {
+    ArgParser parser = new ArgParser(this, args);
+  }
+}
+
+public class ArgParser {
+  public ArgParser(LaunchConfig config, string[] args) {
+    for (int i = 0; i < args.Length; i++){
+      switch (args[i]) {
+        case "--std":
+          config.std_show = true;
+          break;
+        case "--show-std":
+          config.std_show = true;
+          break;
+        case "--verbose":
+          config.verbose = true;
+          break;
+        case "--config_path":
+          config.config_path = args[++i];
+          break;
+        case "--help":
+          Console.WriteLine("usage: gitter [OPTIONS]\n--std, --show-std\n----> Shows the output from the compile/update command directly from compiler/git/wget...");
+          Environment.Exit(0);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
 
 public class FilePathArranger 
 {
@@ -58,14 +94,16 @@ public class ConfigReader
 public class Runner
 {
 
-  protected static (int errCode, string ErrMsg) RunBuildCommand(string cmd, string workingDir) // We return a tuple rather than simply printing the error in case user doesn't care (configurable in the future)
+  protected static (int errCode, string ErrMsg) RunBuildCommand(string cmd, string workingDir, LaunchConfig config) // We return a tuple rather than simply printing the error in case user doesn't care (configurable in the future)
   {
     System.Diagnostics.Process process = new System.Diagnostics.Process();
 
     process.StartInfo.FileName = "/bin/bash";
     process.StartInfo.Arguments = $"-c \"{cmd}\"";
+
     process.StartInfo.RedirectStandardError = true;
     process.StartInfo.RedirectStandardOutput = true;
+
     process.StartInfo.WorkingDirectory = workingDir;
     process.Start();
 
@@ -73,6 +111,12 @@ public class Runner
     string err = process.StandardError.ReadToEnd();
 
     process.WaitForExit();
+
+    if(config.std_show)
+    {
+      Console.Write(output);
+      Console.Error.Write(err);
+    }
 
     if (process.ExitCode != 0)
     {
@@ -86,14 +130,16 @@ public class Runner
     }
   }
 
-  protected static (int ErrCode, string ErrMsg) RunUpdate(string cmd, string workingDir) 
+  protected static (int ErrCode, string ErrMsg) RunUpdate(string cmd, string workingDir, LaunchConfig config) 
   {
     System.Diagnostics.Process process = new System.Diagnostics.Process();
 
     process.StartInfo.FileName = "/bin/bash";
     process.StartInfo.Arguments = $"-c \"{cmd}\"";
+
     process.StartInfo.RedirectStandardError = true;
     process.StartInfo.RedirectStandardOutput = true;
+
     process.StartInfo.WorkingDirectory = workingDir;
     process.Start();
 
@@ -101,6 +147,12 @@ public class Runner
     string err = process.StandardError.ReadToEnd();
 
     process.WaitForExit();
+    
+    if(config.std_show)
+    {
+      Console.Write(output);
+      Console.Error.Write(err);
+    }
 
     if (process.ExitCode != 0)
     {
@@ -137,7 +189,7 @@ public class Runner
 
   protected static string ReplaceTilda(string path, string homePath)
   {
-    if (path.Contains("~"))
+    if (path.StartsWith("~"))
     {
       path = path.Replace("~", homePath);
       return path;
@@ -146,12 +198,14 @@ public class Runner
     return path;
   }
 
-  static int Main()
+  static int Main(string[] args)
   {
     var config = new ConfigReader(); 
     var paths = new FilePathArranger();
 
     Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+
+    LaunchConfig launchConfig = new LaunchConfig(args);
 
     if (config.Read.Program.Count == 0)
     {
@@ -171,7 +225,7 @@ public class Runner
       var cleanExportPath = ReplaceTilda(key.Export, paths.HomePath);
       var cleanBinaryPath = ReplaceTilda(key.BinaryPath, paths.HomePath);
 
-      var (updateReturn, UpdateErr) = RunUpdate(key.Update, cleanPath);
+      var (updateReturn, UpdateErr) = RunUpdate(key.Update, cleanPath, launchConfig);
       if (updateReturn == 0)
       {
         Console.WriteLine($"Updated: {app}");
@@ -182,12 +236,12 @@ public class Runner
         Console.WriteLine("--------------------!!!--------------------");
       }
 
-      var (buildReturn, buildErr) = RunBuildCommand(key.Build, cleanPath);
+      var (buildReturn, buildErr) = RunBuildCommand(key.Build, cleanPath, launchConfig);
       if (buildReturn == 0)
       {
         Console.WriteLine($"Built: {app}");
       }
-      else
+      else if (!launchConfig.std_show)
       {
         Console.WriteLine($"There Was A Problem Building: {app}\n{buildErr}");
         Console.WriteLine("--------------------!!!--------------------");
