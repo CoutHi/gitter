@@ -187,12 +187,14 @@ public class Runner
       Console.WriteLine($"BinaryPath: {key.BinaryPath}");
       Console.WriteLine($"InstallCmd: {key.InstallCmd}");
 
-      var cleanPath       = ReplaceTilda(key.Path, paths.HomePath);
-      var cleanExportPath = ReplaceTilda(key.Export, paths.HomePath);
-      if (key.Export == "") {
-        cleanExportPath = "";
+      var cleanPath = ReplaceTilda(key.Path, paths.HomePath);
+
+      var cleanExportPath = !string.IsNullOrEmpty(key.Export) ? ReplaceTilda(key.Export, paths.HomePath) : "";
+      var cleanBinaryPath = !string.IsNullOrEmpty(key.Export) ? ReplaceTilda(key.BinaryPath, paths.HomePath) : "";
+
+      if (string.IsNullOrEmpty(key.Update)) {
+        key.Update = "";
       }
-      var cleanBinaryPath = ReplaceTilda(key.BinaryPath, paths.HomePath);
 
       var (updateReturn, UpdateErr) = RunCmd(key.Update, cleanPath, launchConfig);
 
@@ -214,11 +216,11 @@ public class Runner
         Console.WriteLine("--------------------!!!--------------------");
       }
 
-      if (cleanExportPath != "") {
-        LinkFile(cleanBinaryPath, cleanExportPath);
+      if (!string.IsNullOrEmpty(cleanExportPath) && !string.IsNullOrEmpty(cleanBinaryPath)) {
+          LinkFile(cleanBinaryPath, cleanExportPath);
       }
       else {
-        Console.WriteLine("Provided Export Path Is Empty, Skipping Symlink");
+          Console.WriteLine("Export path or binary path is empty, skipping symlink");
       }
 
       Console.WriteLine("\n");

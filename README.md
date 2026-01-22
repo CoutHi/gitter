@@ -16,6 +16,7 @@ The config is defined in
 An Example Config Looks Like This:
 
 ```
+
 [program.yazi]
 path = "~/git/yazi"
 build = "cargo build --release"
@@ -30,12 +31,34 @@ update = "git pull"
 export = "~/.local/bin"
 binary_path = "~/git/resvg/target/release/resvg"
 
+[program.lazygit]
+path = "~/git/lazygit/"
+build = "go build"
+update = "git pull"
+export = "~/.local/bin"
+binary_path = "~/git/lazygit/lazygit"
+
 [program.gitter]
 path = "~/dotnet/gitter/"
-build = "~/dotnet/gitter/build.sh"
+build = "dotnet build"
 update = "git pull"
 export = "~/.local/bin"
 binary_path = "~/dotnet/gitter/bin/Release/net8.0/linux-x64/publish/gitter"
+
+[program.scenefx]
+path = "~/git/scenefx/"
+build = "meson build -Dprefix=/usr && sudo ninja -C build install"
+update = "git pull"
+export = ""
+binary_path = ""
+
+[program.mangowc]
+path = "~/git/mangowc/"
+build = "meson build -Dprefix=/usr && sudo ninja -C build install"
+update = "git pull"
+export = ""
+binary_path = ""
+
 ```
 
 path defines the path to the folder of the source code
@@ -49,7 +72,7 @@ binary_path defines where the generated binary lives in the source code folder
 As I've said it's still very early in development and primitive, all config options need to be defined,
 it lacks argument arrays in the config, doesn't recover from errors etc.
 But languages that are easy to compile such as Rust, Go etc. work as per my testing.
-Complicated things like CMake etc. are untested, for those you could try creating scripts that you point the config to.
+Complicated things like CMake etc. are untested, for those you could try creating scripts that you point the config to or running commands with && like in the example config.
 
 ****To Be Implemented****
 - Multiple Values For A Key In Config
