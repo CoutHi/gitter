@@ -8,6 +8,7 @@ public class AppConfig
   public string Update     { get; set; } = null!;
   public string Export     { get; set; } = null!;
   public string BinaryPath { get; set; } = null!;
+  public string InstallCmd { get; set; } = null!;
 }
 
 public class Config {
@@ -94,7 +95,7 @@ public class ConfigReader
 public class Runner
 {
 
-  protected static (int errCode, string ErrMsg) RunBuildCommand(string cmd, string workingDir, LaunchConfig config) // We return a tuple rather than simply printing the error in case user doesn't care (configurable in the future)
+  protected static (int errCode, string ErrMsg) RunCmd(string cmd, string workingDir, LaunchConfig config) // We return a tuple rather than simply printing the error in case user doesn't care (configurable in the future)
   {
     System.Diagnostics.Process process = new System.Diagnostics.Process();
 
@@ -128,42 +129,6 @@ public class Runner
     {
       return ( process.ExitCode, "" );
     }
-  }
-
-  protected static (int ErrCode, string ErrMsg) RunUpdate(string cmd, string workingDir, LaunchConfig config) 
-  {
-    System.Diagnostics.Process process = new System.Diagnostics.Process();
-
-    process.StartInfo.FileName = "/bin/bash";
-    process.StartInfo.Arguments = $"-c \"{cmd}\"";
-
-    process.StartInfo.RedirectStandardError = true;
-    process.StartInfo.RedirectStandardOutput = true;
-
-    process.StartInfo.WorkingDirectory = workingDir;
-    process.Start();
-
-    string output = process.StandardOutput.ReadToEnd();
-    string err = process.StandardError.ReadToEnd();
-
-    process.WaitForExit();
-    
-    if(config.std_show)
-    {
-      Console.Write(output);
-      Console.Error.Write(err);
-    }
-
-    if (process.ExitCode != 0)
-    {
-      Console.WriteLine("\n");
-      Console.WriteLine("--------------------!!!--------------------");
-      return ( process.ExitCode, err );
-    }
-    else
-    {
-      return ( process.ExitCode, "" );
-    }  
   }
 
   protected static void MoveFile(string path, string target) 
@@ -220,34 +185,42 @@ public class Runner
       Console.WriteLine($"Update    : {key.Update}");
       Console.WriteLine($"Export    : {key.Export}");
       Console.WriteLine($"BinaryPath: {key.BinaryPath}");
+      Console.WriteLine($"InstallCmd: {key.InstallCmd}");
 
       var cleanPath       = ReplaceTilda(key.Path, paths.HomePath);
       var cleanExportPath = ReplaceTilda(key.Export, paths.HomePath);
+      if (key.Export == "") {
+        cleanExportPath = "";
+      }
       var cleanBinaryPath = ReplaceTilda(key.BinaryPath, paths.HomePath);
 
-      var (updateReturn, UpdateErr) = RunUpdate(key.Update, cleanPath, launchConfig);
-      if (updateReturn == 0)
-      {
+      var (updateReturn, UpdateErr) = RunCmd(key.Update, cleanPath, launchConfig);
+
+      if (updateReturn == 0){
         Console.WriteLine($"Updated: {app}");
       }
-      else
-      {
+      else if (!launchConfig.std_show){
         Console.WriteLine($"There Was A Problem Updating: {app}\n{UpdateErr}");
         Console.WriteLine("--------------------!!!--------------------");
       }
 
-      var (buildReturn, buildErr) = RunBuildCommand(key.Build, cleanPath, launchConfig);
-      if (buildReturn == 0)
-      {
+      var (buildReturn, buildErr) = RunCmd(key.Build, cleanPath, launchConfig);
+
+      if (buildReturn == 0) {
         Console.WriteLine($"Built: {app}");
       }
-      else if (!launchConfig.std_show)
-      {
+      else if (!launchConfig.std_show) {
         Console.WriteLine($"There Was A Problem Building: {app}\n{buildErr}");
         Console.WriteLine("--------------------!!!--------------------");
       }
 
-      LinkFile(cleanBinaryPath, cleanExportPath);
+      if (cleanExportPath != "") {
+        LinkFile(cleanBinaryPath, cleanExportPath);
+      }
+      else {
+        Console.WriteLine("Provided Export Path Is Empty, Skipping Symlink");
+      }
+
       Console.WriteLine("\n");
     }
 
